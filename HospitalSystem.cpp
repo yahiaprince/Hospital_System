@@ -1,162 +1,149 @@
-#include <iostream>
+#include <bits/stdc++.h>
 using namespace std;
 
-const int MAX_SPECIALIZATION = 20;
+const int MAX_SPECIALIZATION = 20; 
 const int MAX_QUEUE = 5;
 
-string names[MAX_SPECIALIZATION + 1][MAX_QUEUE + 1]; // [21][6]
-int status[MAX_SPECIALIZATION + 1][MAX_QUEUE + 1];   // 0 regular, 1 urgent
-int queue_length[MAX_SPECIALIZATION + 1];            // for each specialization: how many patients so far
+class Patient {
+public:
+    string name;
+    bool isUrgent;
 
-int menu()
-{
-  int choice = -1;
-  while (choice == -1)
-  {
-    cout << "\nEnter your choice:\n";
-    cout << "1) Add new patient\n";
-    cout << "2) Print all patients\n";
-    cout << "3) Get next patient\n";
-    cout << "4) Exit\n";
+    Patient(string name, bool isUrgent) : name(name), isUrgent(isUrgent) {}
+};
 
-    cin >> choice;
+class PatientQueue {
+private:
+    vector<Patient> queue;
+    int specialization;
 
-    if (!(1 <= choice && choice <= 4))
-    {
-      cout << "Invalid choice. Try again\n";
-      choice = -1; // loop keep working
+public:
+    PatientQueue(int specialization) : specialization(specialization) {}
+
+    bool addPatient(const string& name, bool isUrgent) {
+        if (queue.size() >= MAX_QUEUE) {
+            cout << "Sorry, we can't add more patients for this specialization.\n";
+            return false;
+        }
+
+        if (isUrgent) {
+            queue.insert(queue.begin(), Patient(name, isUrgent)); // if patient is urgent => to front
+        } else {
+            queue.push_back(Patient(name, isUrgent)); // if patient is not urgent => to back
+        }
+        return true;
     }
-  }
-  return choice;
-}
 
-// Move each patient to the left. E.g if patient in position 5, it will be in 4
-// Help in removing patient
-void shift_left(int spec, string names_sp[], int status_sp[])
-{
-  int len = queue_length[spec];
-  for (int i = 1; i < len; ++i)
-  {
-    names_sp[i - 1] = names_sp[i];
-    status_sp[i - 1] = status_sp[i];
-  }
-  queue_length[spec]--;
-}
+    void printPatients() const {
+        if (queue.empty()) {
+            return;
+        }
+        cout << "There are " << queue.size() << " patients in specialization " << specialization << ":\n";
+        for (const auto& patient : queue) {
+            cout << patient.name << " (" << (patient.isUrgent ? "urgent" : "regular") << ")\n";
+        }
+    }
 
-// Move each patient to the right. E.g if patient in position 5, it will be in 6
-// Help in adding patient
-void shift_right(int spec, string names_sp[], int status_sp[])
-{
-  int len = queue_length[spec];
-  for (int i = len - 1; i >= 0; --i)
-  { // critical to start from END
-    names_sp[i + 1] = names_sp[i];
-    status_sp[i + 1] = status_sp[i];
-  }
-  queue_length[spec]++;
-}
+    void getNextPatient() {
+        if (queue.empty()) {
+            cout << "No patients at the moment. Have rest, Doctor.\n";
+            return;
+        }
+        cout << queue.front().name << " please go with the Dr.\n";
+        queue.erase(queue.begin()); // Remove first patient
+    }
+};
 
-bool add_patient()
-{
-  int spec;
-  string name;
-  int st;
+class HospitalSystem {
+private:
+    PatientQueue* specializations[MAX_SPECIALIZATION]; 
 
-  cout << "Enter specialization, name, statis: ";
-  cin >> spec >> name >> st;
+public:
+    HospitalSystem() {
+        for (int i = 0; i < MAX_SPECIALIZATION; ++i) {
+            specializations[i] = new PatientQueue(i);
+        }
+    }
 
-  int pos = queue_length[spec];
-  if (pos >= MAX_QUEUE)
-  {
-    cout << "Sorry we can't add more patients for this specialization\n";
-    return false;
-  }
+    ~HospitalSystem() {
+        for (int i = 0; i < MAX_SPECIALIZATION; ++i) {
+            delete specializations[i];
+        }
+    }
 
-  if (st == 0) // regular, add to end
-  {
-    names[spec][pos] = name;
-    status[spec][pos] = st;
-    queue_length[spec]++;
-  }
-  else
-  {
-    // urgent, add to begin. Shift, then add
-    shift_right(spec, names[spec], status[spec]);
-    names[spec][0] = name;
-    status[spec][0] = st;
-  }
+    void run() {
+        while (true) {
+            int choice = menu();
+            if (choice == 1)
+                addPatient();
+            else if (choice == 2)
+                printAllPatients();
+            else if (choice == 3)
+                getNextPatient();
+            else
+                break;
+        }
+    }
 
-  return true;
-}
+private:
+    int menu() {
+        int choice = -1;
+        while (choice == -1) {
+            cout << "\nEnter your choice:\n";
+            cout << "1) Add new patient\n";
+            cout << "2) Print all patients\n";
+            cout << "3) Get next patient\n";
+            cout << "4) Exit\n";
+            cin >> choice;
 
-void print_patient(int spec, string names_sp[], int status_sp[])
-{
-  int len = queue_length[spec];
-  if (len == 0)
-    return;
+            if (!(1 <= choice && choice <= 4)) {
+                cout << "Invalid choice. Try again\n";
+                choice = -1;
+            }
+        }
+        return choice;
+    }
 
-  cout << "There are " << len << " patients in specialization " << spec << "\n";
-  for (int i = 0; i < len; ++i)
-  {
-    cout << names_sp[i] << " ";
-    if (status_sp[i])
-      cout << "urgent\n";
-    else
-      cout << "regular\n";
-  }
-  cout << "\n";
-}
+    void addPatient() {
+        int spec;
+        string name;
+        int status;
 
-void print_patients()
-{
-  cout << "****************************\n";
-  for (int spec = 0; spec < MAX_SPECIALIZATION; ++spec)
-  {
-    print_patient(spec, names[spec], status[spec]);
-  }
-}
+        cout << "Enter specialization (0-" << MAX_SPECIALIZATION - 1 << "), name, and status (0 regular, 1 urgent): ";
+        cin >> spec >> name >> status;
 
-void get_next_patients()
-{
-  int spec;
-  cout << "Enter specialization: ";
-  cin >> spec;
+        if (spec < 0 || spec >= MAX_SPECIALIZATION) {
+            cout << "Invalid specialization. Try again.\n";
+            return;
+        }
 
-  int len = queue_length[spec];
+        bool isUrgent = status == 1;
+        specializations[spec]->addPatient(name, isUrgent);
+    }
 
-  if (len == 0)
-  {
-    cout << "No patients at the moment. Have rest, Doctor\n";
-    return;
-  }
+    void printAllPatients() {
+        cout << "****************************\n";
+        for (int i = 0; i < MAX_SPECIALIZATION; ++i) {
+            specializations[i]->printPatients();
+        }
+    }
 
-  // Let patient goes to dr
-  cout << names[spec][0] << " please go with the Dr\n";
+    void getNextPatient() {
+        int spec;
+        cout << "Enter specialization: ";
+        cin >> spec;
 
-  // delete the patient in position 0
-  shift_left(spec, names[spec], status[spec]);
-}
+        if (spec < 0 || spec >= MAX_SPECIALIZATION) {
+            cout << "Invalid specialization. Try again.\n";
+            return;
+        }
 
-void hospital_system()
-{
-  while (true)
-  {
-    int choice = menu();
+        specializations[spec]->getNextPatient();
+    }
+};
 
-    if (choice == 1)
-      add_patient();
-    else if (choice == 2)
-      print_patients();
-    else if (choice == 3)
-      get_next_patients();
-    else
-      break;
-  }
-}
-
-int main()
-{
-  // freopen("c.in", "rt", stdin);
-  hospital_system();
-  return 0;
+int main() {
+    HospitalSystem system;
+    system.run();
+    return 0;
 }
